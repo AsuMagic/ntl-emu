@@ -175,7 +175,7 @@ namespace ntl
 			rdst = iaddr;
 		}},
 		{"hlt", [](CPU& cpu, const instruction_t) {
-			cpu.exception(0x0002, "CPU halted. No interrupts."); // TODO use interrupts for hlt
+			cpu.exception(0x0002, "External interrupts not implemented, cannot halt."); // TODO use interrupts for hlt
 		}},
 		{"read", [](CPU& cpu, const instruction_t) {
 			cpu.exception(0x0002, "Port I/O not implemented.");
