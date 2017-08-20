@@ -186,8 +186,9 @@ namespace ntl
 		{"wait", [](CPU& cpu, const instruction_t) {
 			cpu.exception(0x0002, "Port I/O not implemented.");
 		}},
-		{"int", [](CPU& cpu, const instruction_t) {
-			cpu.exception(0x0002, "Port I/O not implemented.");
+		{"int", [](CPU& cpu, const instruction_t ins) {
+			const auto iid = slice<16, 16>(ins);
+			cpu.interrupt(iid);
 		}}
 	}};
 
