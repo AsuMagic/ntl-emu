@@ -1,6 +1,6 @@
 # **nanoThallium** Emulator
 
-nanoThallium is a RISC architecture. This is a WIP emulator for this architecture.  
+nanoThallium is a RISC architecture. This is a WIP emulator for this architecture. Link to the ntl specification [here](https://github.com/AsuMagic/ntl).  
 It is not possible (yet) to load arbitrary machine code from a file, but an assembler is on the way.
 
 ## Features
