@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <iostream>
+#include <cstring>
 
 namespace ntl
 {
@@ -10,20 +11,20 @@ namespace ntl
 	Memory<T, Size>::Memory() :
 		_memory(Size)
 	{}
-
+	
 	template<class T, std::size_t Size>
-	Memory<T, Size>::Memory(std::initializer_list<T> list) :
+	template<class U>
+	Memory<T, Size>::Memory(U c) :
 		_memory(Size)
 	{
-		auto cp_end = end(list);
-		
-		if (list.size() > Size)
+		// TODO just make this less terrible
+		if (static_cast<std::size_t>(c.size()) > (Size * sizeof(instruction_t)))
 		{
-			std::cout << "Memory warning: Given list will be truncated (" << Size << " < " << list.size() << ")\n";
-			cp_end = begin(list) + Size;
+			std::cout << "Memory warning: Given memory range will be truncated (" << Size << " < " << c.size() << ")\n";
+			c.resize(Size * sizeof(instruction_t));
 		}
-
-		std::copy(begin(list), cp_end, begin(_memory));
+		
+		std::memcpy(_memory.data(), &(c[0]), c.size());
 	}
 
 	template<class T, std::size_t Size>

@@ -197,17 +197,17 @@ namespace ntl
 		_program = std::move(program);
 	}
 
-	Register& CPU::reg(const instruction_t id)
+	Register& CPU::reg(const std::size_t id)
 	{
 		return (*this)[id];
 	}
 
-	word_t& CPU::smem(const instruction_t at)
+	word_t& CPU::smem(const word_t at)
 	{
 		return _scratchpad[at];
 	}
 
-	program_t& CPU::pmem(const instruction_t at)
+	program_t& CPU::pmem(const word_t at)
 	{
 		return _program[at];
 	}

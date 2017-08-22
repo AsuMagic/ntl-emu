@@ -1,17 +1,37 @@
 #include "ntl/cpu.hpp"
 
-int main()
-{
-	ntl::CPU cpu;
+#include <cstdint>
+#include <fstream>
+#include <vector>
 
-	cpu.program_move(ntl::Memory<ntl::program_t, 65536>
+std::vector<std::uint8_t> read_file(std::ifstream& file)
+{
+	file.seekg(0, std::ios::end);
+	std::vector<std::uint8_t> program(file.tellg());
+	file.seekg(0);
+	file.read(reinterpret_cast<char*>(program.data()), program.size()); 
+	return program;
+}
+
+int main(int argc, char* argv[])
+{
+	if (argc != 2)
 	{
-		0x0220, 0x0005, // ldi racc, 5
-		0x0420, 0x0008, // ldi rg0, 8
-		0x4206, 0x0002, // add racc, rg0, racc
-		0x0012, 0x0000, // fbit rfl, 0; enable interrupts
-		0x00FF, 0x0000, // INVALID opcode
-	});
+		std::cerr << "Usage: ntlemu [program]\n";
+		return -1;
+	}
+	
+	ntl::CPU cpu;
+	
+	std::ifstream file{argv[1]};
+	
+	if (!file)
+	{
+		std::cerr << "Failed to load program from file '" << argv[1] << "'\n";
+		return -1;
+	}
+	
+	cpu.program_move(ntl::Memory<ntl::program_t, 65536>{read_file(file)});
 
 	cpu.run();
 }

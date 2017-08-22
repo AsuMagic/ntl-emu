@@ -16,7 +16,9 @@ namespace ntl
 
 	public:
 		Memory();
-		Memory(std::initializer_list<T> list);
+		
+		template<class U>
+		Memory(U c); // copy from contiguous container
 
 		T& operator[](const std::size_t at);
 	};

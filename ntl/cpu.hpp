@@ -42,9 +42,9 @@ namespace ntl
 	public:
 		void program_move(Memory<program_t, 65536>&& program);
 
-		Register& reg(const instruction_t id);
-		word_t& smem(const instruction_t at);
-		program_t& pmem(const instruction_t at);
+		Register& reg(const std::size_t id);
+		word_t& smem(const word_t at);
+		program_t& pmem(const word_t at);
 
 		void run();
 		
