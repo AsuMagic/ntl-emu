@@ -19,7 +19,6 @@ namespace ntl
 	
 	template<class T> struct bit_rightshift  { constexpr T operator()(const T a, const T b) { return a >> b; } };
 	template<class T> struct bit_leftshift   { constexpr T operator()(const T a, const T b) { return a << b; } };
-	template<class T> struct emu_arightshift { constexpr T operator()(const T a, const T b) { /*return a >> b;{"ashr not implemented", 0x0002};*/return a >> b; } };
 	template<class T> struct emu_bit_get     { constexpr T operator()(const T a, const T offset) { return (a >> offset) & 0b1; } };
 
 	template<class T> struct emu_equal_to_zero { constexpr T operator()(const T a) { return a == 0; } };
@@ -31,8 +30,7 @@ namespace ntl
 		{
 			const Register& ra = cpu.reg(slice<8, 4>(ins));
 			const Register& rb = cpu.reg(slice<12, 4>(ins));
-			auto& rdst = cpu.reg(slice<16, 4>(ins));
-			rdst = F()(ra.value, rb.value);
+			cpu.racc = F()(ra.value, rb.value);
 		};
 	}
 
@@ -42,8 +40,7 @@ namespace ntl
 		return [](CPU& cpu, const instruction_t ins)
 		{
 			const Register& ra = cpu.reg(slice<8, 4>(ins));
-			Register& rdst = cpu.reg(slice<12, 4>(ins));
-			rdst = F()(ra.value);
+			cpu.racc = F()(ra.value);
 		};
 	}
 	
@@ -77,23 +74,13 @@ namespace ntl
 		{"nop", [](CPU&, const instruction_t) {}},
 		{"load", [](CPU& cpu, const instruction_t ins) {
 			auto& rdst = cpu.reg(slice<8, 4>(ins));
-			const auto& smem = cpu.smem(slice<16, 16>(ins));
-			rdst = smem;
+			const auto& mem = cpu.mem(slice<16, 16>(ins));
+			rdst = mem;
 		}},
 		{"store", [](CPU& cpu, const instruction_t ins) {
 			const auto& rsrc = cpu.reg(slice<8, 4>(ins));
-			auto& smem = cpu.smem(slice<16, 16>(ins));
-			smem = rsrc;
-		}},
-		{"pload", [](CPU& cpu, const instruction_t ins) {
-			auto& rdst = cpu.reg(slice<8, 4>(ins));
-			const auto& pmem = cpu.pmem(slice<16, 16>(ins));
-			rdst = pmem;
-		}},
-		{"pstore", [](CPU& cpu, const instruction_t ins) {
-			const auto& rsrc = cpu.reg(slice<8, 4>(ins));
-			auto& pmem = cpu.pmem(slice<16, 16>(ins));
-			pmem = rsrc;
+			auto& mem = cpu.mem(slice<16, 16>(ins));
+			mem = rsrc;
 		}},
 		{"mov", [](CPU& cpu, const instruction_t ins) {
 			const auto& rsrc = cpu.reg(slice<8, 4>(ins));
@@ -106,12 +93,11 @@ namespace ntl
 		{"div", [](CPU& cpu, const instruction_t ins) {
 			const auto& ra = cpu.reg(slice<8, 4>(ins));
 			const auto& rb = cpu.reg(slice<12, 4>(ins));
-			auto& rdst = cpu.reg(slice<16, 4>(ins));
 			
 			if (rb == 0)
 				cpu.exception(0x0000, "Illegal arithmetic: Division by zero");
 			else
-				rdst = ra / rb;
+				cpu.racc = ra / rb;
 		}},
 		{"and",  Instruction::arithmetic_binop<std::bit_and   <word_t>>()},
 		{"or",   Instruction::arithmetic_binop<std::bit_or    <word_t>>()},
@@ -119,7 +105,6 @@ namespace ntl
 		{"not",  Instruction::arithmetic_unop <std::bit_not   <word_t>>()},
 		{"shl",  Instruction::arithmetic_binop<bit_leftshift  <word_t>>()},
 		{"shr",  Instruction::arithmetic_binop<bit_rightshift <word_t>>()},
-		{"ashr", Instruction::arithmetic_binop<emu_arightshift<word_t>>()},
 		{"gbit", Instruction::arithmetic_binop<emu_bit_get    <word_t>>()},
 		{"fbit", [](CPU& cpu, const instruction_t ins) {
 			auto& ra = cpu.reg(slice<8, 4>(ins));
@@ -128,11 +113,11 @@ namespace ntl
 		}},
 		{"pop", [](CPU& cpu, const instruction_t ins) {
 			auto& rdst = cpu.reg(slice<8, 4>(ins));
-			rdst = cpu._scratchpad[cpu.rsp.value--];
+			rdst = cpu._memory[cpu.rsp.value--];
 		}},
 		{"push", [](CPU& cpu, const instruction_t ins) {
 			const auto rsrc = cpu.reg(slice<8, 4>(ins));
-			cpu._scratchpad[++cpu.rsp.value] = rsrc;
+			cpu._memory[++cpu.rsp.value] = rsrc;
 		}},
 		{"jmpi", [](CPU& cpu, const instruction_t ins) {
 			const auto iaddr = slice<16, 16>(ins);
@@ -153,16 +138,16 @@ namespace ntl
 				cpu.rip = raddr;
 		}},
 		{"ret", [](CPU& cpu, const instruction_t) {
-			cpu.rip = cpu._scratchpad[cpu.rsp.value--];
+			cpu.rip = cpu._memory[cpu.rsp.value--];
 		}},
 		{"calli", [](CPU& cpu, const instruction_t ins) {
 			const auto iaddr = slice<16, 16>(ins);
-			cpu._scratchpad[++cpu.rsp.value] = cpu.rip;
+			cpu._memory[++cpu.rsp.value] = cpu.rip;
 			cpu.rip = iaddr;
 		}},
 		{"call", [](CPU& cpu, const instruction_t ins) {
 			const auto& raddr = cpu.reg(slice<8, 4>(ins));
-			cpu._scratchpad[++cpu.rsp.value] = cpu.rip;
+			cpu._memory[++cpu.rsp.value] = cpu.rip;
 			cpu.rip = raddr;
 		}},
 		{"tz",  Instruction::test_unop <emu_equal_to_zero <word_t>>()},
@@ -177,24 +162,15 @@ namespace ntl
 		{"hlt", [](CPU& cpu, const instruction_t) {
 			cpu.exception(0x0002, "External interrupts not implemented, cannot halt."); // TODO use interrupts for hlt
 		}},
-		{"read", [](CPU& cpu, const instruction_t) {
-			cpu.exception(0x0002, "Port I/O not implemented.");
-		}},
-		{"write", [](CPU& cpu, const instruction_t) {
-			cpu.exception(0x0002, "Port I/O not implemented.");
-		}},
-		{"wait", [](CPU& cpu, const instruction_t) {
-			cpu.exception(0x0002, "Port I/O not implemented.");
-		}},
 		{"int", [](CPU& cpu, const instruction_t ins) {
 			const auto iid = slice<16, 16>(ins);
-			cpu.interrupt(iid);
+			cpu.interrupt(iid & 0b111);
 		}}
 	}};
 
-	void CPU::program_move(Memory<program_t, 65536>&& program)
+	void CPU::memory_move(Memory<word_t, 65536>&& mem)
 	{
-		_program = std::move(program);
+		_memory = std::move(mem);
 	}
 
 	Register& CPU::reg(const std::size_t id)
@@ -202,21 +178,16 @@ namespace ntl
 		return (*this)[id];
 	}
 
-	word_t& CPU::smem(const word_t at)
+	word_t& CPU::mem(const word_t at)
 	{
-		return _scratchpad[at];
-	}
-
-	program_t& CPU::pmem(const word_t at)
-	{
-		return _program[at];
+		return _memory[at];
 	}
 
 	void CPU::run()
 	{
 		while (!_abort)
 		{
-			instruction_t instruction = _program[rip] | (_program[rip.value + 1] << 16); // Instructions are 32-bit, so they are split accross 2 CPU words.
+			instruction_t instruction = _memory[rip] | (_memory[rip.value + 1] << 16); // Instructions are 32-bit, so they are split accross 2 CPU words.
 			const std::uint8_t opcode = instruction & 0xFF; // The opcode is located on the first 8 bits of the instruction.
 			
 #ifdef NTL_DEBUG
@@ -237,7 +208,7 @@ namespace ntl
 	{
 		std::cerr << "\nEncountered CPU exception id 0x" << std::setfill('0') << std::setw(4) << id << ": '" << message << "'\n";
 		
-		_scratchpad[++rsp.value] = id; // Push the exception ID to the stack
+		_memory[++rsp.value] = id; // Push the exception ID to the stack
 		interrupt(0); // Issue the interrupt 0 (CPU exception interrupt).
 	}
 	
@@ -271,7 +242,7 @@ namespace ntl
 		}
 		
 		const word_t handler_address = ridt + (id * 2);
-		_scratchpad[++rsp.value] = rip;
+		_memory[++rsp.value] = rip;
 		rip = handler_address; // Call the interrupt handler.
 		
 		rfl.intlock = true;

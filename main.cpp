@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 	
-	cpu.program_move(ntl::Memory<ntl::program_t, 65536>{read_file(file)});
+	cpu.memory_move(ntl::Memory<ntl::word_t, 65536>{read_file(file)});
 
 	cpu.run();
 }

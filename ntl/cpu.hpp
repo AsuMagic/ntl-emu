@@ -33,18 +33,16 @@ namespace ntl
 
 	class CPU : public Registers
 	{
-		Memory<word_t, 65536> _scratchpad;
-		Memory<program_t, 65536> _program;
+		Memory<word_t, 65536> _memory;
 		const static std::array<Instruction, 256> _instruction_set;
 		
 		bool _abort = false;
 
 	public:
-		void program_move(Memory<program_t, 65536>&& program);
+		void memory_move(Memory<word_t, 65536>&& init);
 
 		Register& reg(const std::size_t id);
-		word_t& smem(const word_t at);
-		program_t& pmem(const word_t at);
+		word_t& mem(const word_t at);
 
 		void run();
 		
